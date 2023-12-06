@@ -5,9 +5,15 @@ Use to extract potential RTP streams from a pcap into a dedicated file.
 pcap_tool uses `libpcap` (https://www.tcpdump.org/)
 
 e.g. for debian:
+
 ```
 apt install libcap-dev
 ```
+
+# changelog
+- 2023-12-06
+	+ support compiling on macos
+	+ support cmake
 
 # Build
 

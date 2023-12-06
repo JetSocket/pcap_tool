@@ -62,13 +62,21 @@ void pcap_tool_parse_sip(const char* payload, uint payload_len);
 void pcap_tool_process_udp_packet(const struct pcap_pkthdr* pkthdr, const u_char* packet) {
 	const struct udphdr* udp_header;
 	uint16_t src_port, dst_port, udp_len;
-
+    
+#ifdef __APPLE__
+    // UDP header, 8 Bytes
+    udp_header = (struct udphdr*)(packet + sizeof(struct ether_header) + sizeof(struct ip));
+    src_port = ntohs(udp_header->uh_sport);
+    dst_port = ntohs(udp_header->uh_dport);
+    udp_len = ntohs(udp_header->uh_ulen);
+#else
 	// UDP header, 8 Bytes
 	udp_header = (struct udphdr*)(packet + sizeof(struct ether_header) + sizeof(struct ip));
 	src_port = ntohs(udp_header->source);
 	dst_port = ntohs(udp_header->dest);
 	udp_len = ntohs(udp_header->len);
-
+#endif
+    
 	uint16_t payload_len = udp_len - sizeof(struct udphdr);
 	u_char* payload = (u_char*)(udp_header + 1);
 
@@ -86,7 +94,7 @@ void pcap_tool_process_udp_packet(const struct pcap_pkthdr* pkthdr, const u_char
 
 	if ((src_port == 5060) || (dst_port == 5060)) {
 		// Likely to be SIP
-		pcap_tool_parse_sip(payload, payload_len);
+		pcap_tool_parse_sip((const char*)payload, payload_len);
 	}
 
 	// Assume this is an RTP packet and try reading the RTP header
@@ -156,8 +164,13 @@ void pcap_tool_process_tcp_packet(const struct pcap_pkthdr* pkthdr, const u_char
 
 	tcp_header = (struct tcphdr*)(packet + sizeof(struct ether_header) + sizeof(struct ip));
 
+#ifdef __APPLE__
+    src_port = ntohs(tcp_header->th_sport);
+    dst_port = ntohs(tcp_header->th_dport);
+#else
 	src_port = ntohs(tcp_header->source);
 	dst_port = ntohs(tcp_header->dest);
+#endif
 
 	// th_off contains the number of 32-bit words forming the TCP header
 	size_t offset = sizeof(struct ether_header) + sizeof(struct ip) + (4 * tcp_header->th_off);
@@ -167,7 +180,7 @@ void pcap_tool_process_tcp_packet(const struct pcap_pkthdr* pkthdr, const u_char
 
 	if (((src_port == 5060) || (dst_port == 5060)) && (payload_len > 20)) {
 		if (debug_print) printf("This is a TCP packet, potential SIP - from %d to %d (payload len:%d)\n", src_port, dst_port, payload_len);
-		pcap_tool_parse_sip(payload, payload_len);
+		pcap_tool_parse_sip((const char*)payload, payload_len);
 	}
 
 	return;
